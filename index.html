@@ -877,14 +877,21 @@ async function init() {
 
 async function loadGroups() {
   try {
-    const { data, error } = await supabase.rpc('get_groups_with_progress');
-    if (error) { showToast('加载小组数据失败 😿', true); return; }
-    AppState.allGroups = data.map(row => ({
-      id: row.group_id,
-      members: row.members,
-      member_count: row.member_count,
-      scored_count: Number(row.scored_count),
-      total_to_score: row.total_to_score
+    const { data: groups, error: groupsError } = await supabase.from('groups').select('*');
+    if (groupsError) { showToast('加载小组数据失败 😿', true); return; }
+
+    const { data: scores, error: scoresError } = await supabase.from('scores').select('rater_group');
+    if (scoresError) { showToast('加载评分数据失败 😿', true); return; }
+
+    const countMap = {};
+    (scores || []).forEach(s => { countMap[s.rater_group] = (countMap[s.rater_group] || 0) + 1; });
+
+    AppState.allGroups = (groups || []).map(g => ({
+      id: g.id,
+      members: g.members,
+      member_count: g.members.length,
+      scored_count: countMap[g.id] || 0,
+      total_to_score: 11
     }));
 
     // 填充下拉框
