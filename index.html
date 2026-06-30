@@ -877,30 +877,31 @@ async function init() {
 async function loadGroups() {
   try {
     const { data: groups, error: groupsError } = await supabase.from('groups').select('*');
-    if (groupsError) { showToast('加载小组数据失败 😿', true); return; }
+    if (groupsError) { console.error('groups query error:', groupsError); showToast('加载小组数据失败 😿', true); return; }
 
-    const { data: scores, error: scoresError } = await supabase.from('scores').select('rater_group');
-    if (scoresError) { showToast('加载评分数据失败 😿', true); return; }
-
-    const countMap = {};
-    (scores || []).forEach(s => { countMap[s.rater_group] = (countMap[s.rater_group] || 0) + 1; });
-
-    AppState.allGroups = (groups || []).map(g => ({
-      id: g.id,
-      members: g.members
-    }));
+    AppState.allGroups = (groups || []).map(g => ({ id: g.id, members: g.members }));
 
     // 填充下拉框
-    groupSelect.innerHTML = '<option value="">-- 请选择你的小组 --</option>';
+    const html = ['<option value="">-- 请选择你的小组 --</option>'];
     AppState.allGroups.forEach(g => {
-      const members = g.members.join('、');
-      const opt = document.createElement('option');
-      opt.value = g.id;
-      opt.textContent = `第${g.id}组：${members}`;
-      groupSelect.appendChild(opt);
+      html.push(`<option value="${g.id}">第${g.id}组：${g.members.join('、')}</option>`);
     });
+    groupSelect.innerHTML = html.join('');
+
+    // 加载评分进度（非关键，失败不影响下拉框）
+    const { data: scores } = await supabase.from('scores').select('rater_group');
+    const countMap = {};
+    (scores || []).forEach(s => { countMap[s.rater_group] = (countMap[s.rater_group] || 0) + 1; });
+    const scored = countMap[AppState.currentGroup] || 0;
+    if (AppState.currentGroup) {
+      progressFill.style.width = (scored / (AppState.allGroups.length - 1 || 11) * 100) + '%';
+      progressText.textContent = `${scored}/${AppState.allGroups.length - 1 || 11} 组已评`;
+    }
   } catch (e) {
+    console.error('loadGroups error:', e);
     showToast('加载小组数据失败 😿', true);
+  }
+}
   }
 }
 
