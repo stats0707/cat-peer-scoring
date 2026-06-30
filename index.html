@@ -839,6 +839,22 @@ body::before {
 
 const DIMENSIONS = ['背景介绍', '数据说明', '数据描述性分析', '数据建模分析', '商业化应用', '报告格式与展示'];
 
+// 12个小组（硬编码，不依赖 Supabase 加载）
+const ALL_GROUPS = [
+  {id:1, members:['宋泽','魏海洋','孔文兴','李祥斌']},
+  {id:2, members:['刘能浩','李向川','曹迎春']},
+  {id:3, members:['彭翔栩','李文武','施润','王嵘俊']},
+  {id:4, members:['邵明雨','朱俊莹','苏国']},
+  {id:5, members:['朱楠','龙文静','朱明芬']},
+  {id:6, members:['罗雯霄','李娜','张鑫雨','胡俊仪']},
+  {id:7, members:['蔡奇仙','李美婷','胡兴蕊']},
+  {id:8, members:['马跃芸','王永利','钱思怡']},
+  {id:9, members:['代长美','罗微','赵国慧']},
+  {id:10, members:['曹希萌','马富容','崔冬月']},
+  {id:11, members:['陈玉曼','金淑靖']},
+  {id:12, members:['李韩']}
+];
+
 let AppState = {
   currentGroup: null,
   allGroups: [],
@@ -875,32 +891,27 @@ async function init() {
 }
 
 async function loadGroups() {
+  AppState.allGroups = ALL_GROUPS;
+
+  // 直接填充下拉框
+  let html = '<option value="">-- 请选择你的小组 --</option>';
+  ALL_GROUPS.forEach(g => {
+    html += `<option value="${g.id}">第${g.id}组：${g.members.join('、')}</option>`;
+  });
+  groupSelect.innerHTML = html;
+
+  // 后台异步加载评分进度（非阻塞）
   try {
-    const { data: groups, error: groupsError } = await supabase.from('groups').select('*');
-    if (groupsError) { console.error('groups query error:', groupsError); showToast('加载小组数据失败 😿', true); return; }
-
-    AppState.allGroups = (groups || []).map(g => ({ id: g.id, members: g.members }));
-
-    // 填充下拉框
-    const html = ['<option value="">-- 请选择你的小组 --</option>'];
-    AppState.allGroups.forEach(g => {
-      html.push(`<option value="${g.id}">第${g.id}组：${g.members.join('、')}</option>`);
-    });
-    groupSelect.innerHTML = html.join('');
-
-    // 加载评分进度（非关键，失败不影响下拉框）
     const { data: scores } = await supabase.from('scores').select('rater_group');
     const countMap = {};
     (scores || []).forEach(s => { countMap[s.rater_group] = (countMap[s.rater_group] || 0) + 1; });
-    const scored = countMap[AppState.currentGroup] || 0;
     if (AppState.currentGroup) {
-      progressFill.style.width = (scored / (AppState.allGroups.length - 1 || 11) * 100) + '%';
-      progressText.textContent = `${scored}/${AppState.allGroups.length - 1 || 11} 组已评`;
+      const scored = countMap[AppState.currentGroup] || 0;
+      const total = ALL_GROUPS.length - 1;
+      progressFill.style.width = (scored / total * 100) + '%';
+      progressText.textContent = `${scored}/${total} 组已评`;
     }
-  } catch (e) {
-    console.error('loadGroups error:', e);
-    showToast('加载小组数据失败 😿', true);
-  }
+  } catch(e) { /* 非关键 */ }
 }
   }
 }
