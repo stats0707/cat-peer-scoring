@@ -1008,11 +1008,11 @@ function renderScoreCards(myGid) {
       <div class="dimension-row">
         <label class="dimension-label">${dim.label}</label>
         <div class="dimension-input">
-          <input type="range" min="1" max="10" value="${existing ? existing.scores[dim.name] : 5}"
+          <input type="range" min="0" max="${dim.max}" value="${existing ? existing.scores[dim.name] : Math.round(dim.max/2)}"
                  data-group="${g.id}" data-dim="${dim.name}" data-max="${dim.max}"
                  oninput="updateSlider(this)" onchange="onSliderChange(${g.id})">
         </div>
-        <span class="score-value" id="val-${g.id}-${i}">${existing ? existing.scores[dim.name] : 5}</span>
+        <span class="score-value" id="val-${g.id}-${i}">${existing ? existing.scores[dim.name] : Math.round(dim.max/2)}</span>
         <span class="dim-max">/${dim.max}</span>
       </div>
       `).join('')}
@@ -1051,14 +1051,12 @@ function updateSlider(input) {
 function updateCardTotal(gid) {
   const card = document.getElementById(`card-${gid}`);
   if (!card) return;
-  // 每个滑块 1-10 分 → 按该维度 max 换算
   let total = 0;
   card.querySelectorAll('input[type="range"]').forEach(inp => {
-    const max = parseInt(inp.dataset.max);
-    total += (parseInt(inp.value) / 10) * max;
+    total += parseInt(inp.value);
   });
-  const totalEl = document.getElementById(`total-${g.id}`);
-  if (totalEl) totalEl.textContent = total.toFixed(1);
+  const totalEl = document.getElementById(`total-${gid}`);
+  if (totalEl) totalEl.textContent = total;
 }
 
 function onSliderChange(gid) {
