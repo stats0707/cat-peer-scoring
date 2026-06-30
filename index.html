@@ -848,31 +848,13 @@ body::before {
 // 猫咪互评系统 - 前端 JavaScript
 // ============================================================
 
-// 评分项：每个维度满分不同（总分 100）
+// 5 大评分模块（总分 100）
 const DIMENSIONS = [
-  { name: '背景介绍_行业背景',        label: '行业背景是否清晰',     max: 4  },
-  { name: '背景介绍_业务问题',        label: '业务问题是否清晰',     max: 6  },
-  { name: '背景介绍_业务痛点',        label: '业务痛点是否清晰',     max: 6  },
-  { name: '背景介绍_商业价值',        label: '商业价值是否清晰',     max: 4  },
-  { name: '数据获取_数据采集',        label: '数据是否自行采集',     max: 2  },
-  { name: '数据获取_多源数据',        label: '多源数据综合应用',     max: 2  },
-  { name: '数据获取_字段丰富',        label: '数据字段是否丰富',     max: 2  },
-  { name: '数据获取_数据验证',        label: '是否对数据进行验证',   max: 3  },
-  { name: '数据获取_数据加工',        label: '是否对数据进行加工',   max: 3  },
-  { name: '数据获取_客观可信',        label: '数据客观可信度',       max: 3  },
-  { name: '数据说明_因变量定义',      label: '因变量定义并清晰解释', max: 3  },
-  { name: '数据说明_变量综述',        label: '解释性变量是否详述',   max: 3  },
-  { name: '数据说明_单变量',          label: '单变量描述统计充分',   max: 8  },
-  { name: '数据说明_相关性',          label: '相关性描述统计充分',   max: 6  },
-  { name: '数据分析_方法合理',        label: '模型分析方法是否合理', max: 4  },
-  { name: '数据分析_文字逻辑',        label: '文字逻辑流畅、论据充分', max: 8 },
-  { name: '数据分析_技术解读',        label: '模型结果技术解读正确', max: 4  },
-  { name: '数据分析_图表选型',        label: '图表选型是否正确',     max: 4  },
-  { name: '数据分析_图表格式',        label: '图表格式美观风格统一', max: 4  },
-  { name: '数据分析_业务关系',        label: '结果与业务关系论述充分', max: 6 },
-  { name: '商业应用_可执行方案',      label: '可执行性解决方案',     max: 5  },
-  { name: '商业应用_行动方案',        label: '具体行动方案/产品设计', max: 5  },
-  { name: '商业应用_价值定位',        label: '产品价值定位是否明确', max: 5  }
+  { name: '背景介绍', label: '背景介绍（20分）', max: 20 },
+  { name: '数据获取', label: '数据获取（15分）', max: 15 },
+  { name: '数据说明', label: '数据说明（20分）', max: 20 },
+  { name: '数据分析', label: '数据分析（30分）', max: 30 },
+  { name: '商业应用', label: '商业应用（15分）', max: 15 }
 ];
 const TOTAL_MAX = DIMENSIONS.reduce((s, d) => s + d.max, 0); // 100
 
@@ -1240,85 +1222,51 @@ function updateSubmitAllBtn() {
 // ============================================================
 // 加载结果排名
 // ============================================================
-// 加载结果排名 - 从 scores 原始数据前端聚合（避免后端视图与新维度不一致）
+// 加载结果排名 - 从 scores 原始数据前端聚合
 // ============================================================
 async function loadResults() {
   try {
-    // 直接拉所有评分记录（每条包含 23 个评分项的 1-10 分）
     const data = await sb('/scores?select=rated_group,scores,total').catch(() => []);
-    if (!Array.isArray(data) || data.length === 0) {
-      AppState.results = [];
-      renderResults();
-      return;
-    }
-
-    // 按被评组聚合
-    const MODULE_KEYS = ['背景介绍', '数据获取', '数据说明', '数据分析', '商业应用'];
-    const MODULE_MAX = { '背景介绍': 20, '数据获取': 15, '数据说明': 20, '数据分析': 30, '商业应用': 15 };
+    if (!Array.isArray(data) || data.length === 0) { AppState.results = []; renderResults(); return; }
 
     const groupMap = {};
     ALL_GROUPS.forEach(g => {
       groupMap[g.id] = { group_id: g.id, members: g.members.join('、'), _totals: [], _mods: {} };
-      MODULE_KEYS.forEach(m => groupMap[g.id]._mods[m] = []);
+      DIMENSIONS.forEach(d => groupMap[g.id]._mods[d.name] = []);
     });
 
     data.forEach(s => {
       const g = groupMap[s.rated_group];
       if (!g) return;
       g._totals.push(s.total);
-      // 按 23 个评项归类到 5 大模块
-      const scores = s.scores || {};
-      const modSums = {};  // 每个模块的「1-10 加权分」
-      const modMaxes = {}; // 每个模块的满分（4+6+6+4=20 等）
-      DIMENSIONS.forEach(dim => {
-        const modName = dim.name.split('_')[0]
-          .replace('背景介绍','背景介绍')
-          .replace('数据获取','数据获取')
-          .replace('数据说明','数据说明')
-          .replace('数据分析','数据分析')
-          .replace('商业应用','商业应用');
-        const v = scores[dim.name];
-        if (v == null) return;
-        modSums[modName] = (modSums[modName] || 0) + v;
-        modMaxes[modName] = (modMaxes[modName] || 0) + dim.max;
-      });
-      MODULE_KEYS.forEach(m => {
-        if (modMaxes[m]) {
-          // 1-10 分 → 按满分换算
-          g._mods[m].push((modSums[m] || 0) / 10 * modMaxes[m]);
-        }
+      DIMENSIONS.forEach(d => {
+        const v = (s.scores || {})[d.name];
+        if (v != null) g._mods[d.name].push(v);
       });
     });
 
-    // 计算平均值
     const results = Object.values(groupMap).map(g => {
-      const avg_total = g._totals.length ? (g._totals.reduce((a,b)=>a+b,0) / g._totals.length) : 0;
+      const avg_total = g._totals.length ? g._totals.reduce((a,b)=>a+b,0) / g._totals.length : 0;
       const avgs = {};
-      MODULE_KEYS.forEach(m => {
-        const arr = g._mods[m];
-        avgs[m] = arr.length ? arr.reduce((a,b)=>a+b,0) / arr.length : 0;
+      DIMENSIONS.forEach(d => {
+        const arr = g._mods[d.name];
+        avgs[d.name] = arr.length ? arr.reduce((a,b)=>a+b,0) / arr.length : 0;
       });
       return {
-        group_id: g.group_id,
-        members: g.members,
-        avg_total: Math.round(avg_total * 100) / 100,
-        modules: avgs,
-        score_count: g._totals.length
+        group_id: g.group_id, members: g.members,
+        avg_total: Math.round(avg_total * 10) / 10,
+        modules: avgs, score_count: g._totals.length
       };
     });
 
-    // 排序 + 排名
     results.sort((a, b) => b.avg_total - a.avg_total);
     results.forEach((r, i) => {
       if (i > 0 && r.avg_total === results[i-1].avg_total) r.rank = results[i-1].rank;
       else r.rank = i + 1;
     });
-
     AppState.results = results;
     renderResults();
-  } catch (e) {
-    console.error('加载排名失败:', e);
-  }
+  } catch (e) { console.error('加载排名失败:', e); }
 }
 
 function renderResults() {
@@ -1342,12 +1290,12 @@ function renderResults() {
       <td><span class="rank-badge ${rankClass}">${r.rank || '-'}</span></td>
       <td><strong>第${r.group_id}组</strong></td>
       <td style="text-align:left;padding-left:12px;">${r.members}</td>
-      <td><strong style="color:var(--cat-orange-dark);font-size:1.1em;">${fmt(r.avg_total)}/100</strong></td>
-      <td>${fmt(r.modules?.['背景介绍'])}/20</td>
-      <td>${fmt(r.modules?.['数据获取'])}/15</td>
-      <td>${fmt(r.modules?.['数据说明'])}/20</td>
-      <td>${fmt(r.modules?.['数据分析'])}/30</td>
-      <td>${fmt(r.modules?.['商业应用'])}/15</td>
+      <td><strong style="color:var(--cat-orange-dark);font-size:1.1em;">${fmt(r.avg_total)}</strong></td>
+      <td>${fmt(r.modules?.['背景介绍'])}</td>
+      <td>${fmt(r.modules?.['数据获取'])}</td>
+      <td>${fmt(r.modules?.['数据说明'])}</td>
+      <td>${fmt(r.modules?.['数据分析'])}</td>
+      <td>${fmt(r.modules?.['商业应用'])}</td>
       <td>${r.score_count}/11</td>
     </tr>`;
   }).join('');
