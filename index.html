@@ -838,7 +838,6 @@ body::before {
 // ============================================================
 
 const DIMENSIONS = ['背景介绍', '数据说明', '数据描述性分析', '数据建模分析', '商业化应用', '报告格式与展示'];
-const DIM_SHORT = ['背景介绍', '数据说明', '描述性分析', '建模分析', '商业化应用', '报告格式'];
 
 let AppState = {
   currentGroup: null,
@@ -888,10 +887,7 @@ async function loadGroups() {
 
     AppState.allGroups = (groups || []).map(g => ({
       id: g.id,
-      members: g.members,
-      member_count: g.members.length,
-      scored_count: countMap[g.id] || 0,
-      total_to_score: 11
+      members: g.members
     }));
 
     // 填充下拉框
@@ -922,6 +918,7 @@ groupSelect.addEventListener('change', async function() {
 
   AppState.currentGroup = gid;
   const group = AppState.allGroups.find(g => g.id === gid);
+  if (!group) { showToast('小组数据异常，请刷新页面 🐱', true); return; }
 
   // 显示选中组信息
   membersList.textContent = group.members.join('、');
@@ -932,8 +929,8 @@ groupSelect.addEventListener('change', async function() {
 
   // 更新进度
   const scored = Object.keys(AppState.myScores).length;
-  progressFill.style.width = (scored / 11 * 100) + '%';
-  progressText.textContent = `${scored}/11 组已评`;
+  progressFill.style.width =   (scored / (AppState.allGroups.length - 1 || 11) * 100) + '%';
+  progressText.textContent = `${scored}/${AppState.allGroups.length - 1 || 11} 组已评`;
 
   // 显示评分区
   step2.style.display = 'block';
@@ -954,8 +951,8 @@ async function loadMyScores(gid) {
 
     // 更新进度
     const scored = Object.keys(AppState.myScores).length;
-    progressFill.style.width = (scored / 11 * 100) + '%';
-    progressText.textContent = `${scored}/11 组已评`;
+    progressFill.style.width =   (scored / (AppState.allGroups.length - 1 || 11) * 100) + '%';
+    progressText.textContent = `${scored}/${AppState.allGroups.length - 1 || 11} 组已评`;
   } catch (e) {
     console.error('加载评分记录失败', e);
   }
@@ -988,7 +985,7 @@ function renderScoreCards(myGid) {
         <div class="dimension-input">
           <input type="range" min="1" max="10" value="${existing ? existing.scores[dim] : 5}"
                  data-group="${g.id}" data-dim="${dim}"
-                 oninput="updateSlider(this)" onchange="markCardDirty(${g.id})">
+                 oninput="updateSlider(this)" onchange="onSliderChange(${g.id})">
         </div>
         <span class="score-value" id="val-${g.id}-${i}">${existing ? existing.scores[dim] : 5}</span>
       </div>
@@ -1036,7 +1033,7 @@ function updateCardTotal(gid) {
   if (totalEl) totalEl.textContent = total;
 }
 
-function markCardDirty(gid) {
+function onSliderChange(gid) {
   // 当用户拖动滑块后，更新总分
   updateCardTotal(gid);
 }
@@ -1065,7 +1062,7 @@ async function submitScore(ratedGid) {
       p_scores: scores
     });
 
-    if (error || !data.success) {
+    if (error || !data || !data.success) {
       showToast(data?.error || '提交失败 😿', true);
       return;
     }
@@ -1087,8 +1084,8 @@ async function submitScore(ratedGid) {
 
     // 更新进度
     const scored = Object.keys(AppState.myScores).length;
-    progressFill.style.width = (scored / 11 * 100) + '%';
-    progressText.textContent = `${scored}/11 组已评`;
+    progressFill.style.width =   (scored / (AppState.allGroups.length - 1 || 11) * 100) + '%';
+    progressText.textContent = `${scored}/${AppState.allGroups.length - 1 || 11} 组已评`;
 
     // 更新一键提交按钮
     updateSubmitAllBtn();
@@ -1142,7 +1139,7 @@ async function submitAllScores() {
         p_rated_group: g.id,
         p_scores: scores
       });
-      if (!error && data.success) {
+      if (!error && data && data.success) {
         successCount++;
         card.classList.add('completed');
         const cbtn = card.querySelector('.paw-btn');
@@ -1163,8 +1160,8 @@ async function submitAllScores() {
 
   // 更新进度
   const scored = Object.keys(AppState.myScores).length;
-  progressFill.style.width = (scored / 11 * 100) + '%';
-  progressText.textContent = `${scored}/11 组已评`;
+  progressFill.style.width =   (scored / (AppState.allGroups.length - 1 || 11) * 100) + '%';
+  progressText.textContent = `${scored}/${AppState.allGroups.length - 1 || 11} 组已评`;
   updateSubmitAllBtn();
 
   if (failCount === 0) {
@@ -1179,10 +1176,12 @@ function updateSubmitAllBtn() {
   if (!myGid) return;
   const otherGroups = AppState.allGroups.filter(g => g.id !== myGid);
   const pending = otherGroups.filter(g => !AppState.myScores[g.id]);
+  const el = document.getElementById('submitAllCount');
+  if (!el) return;
   if (pending.length === 0) {
-    submitAllCount.textContent = '（全部已提交 ✅）';
+    el.textContent = '（全部已提交 ✅）';
   } else {
-    submitAllCount.textContent = `（${pending.length}组待提交）`;
+    el.textContent = `（${pending.length}组待提交）`;
   }
 }
 
@@ -1251,20 +1250,20 @@ function subscribeRealtime() {
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'scores' },
-      (payload) => {
+      async (payload) => {
         console.log('评分变更:', payload);
-        loadResults();
+        await loadResults();
         if (AppState.currentGroup &&
             payload.new &&
             payload.new.rater_group === AppState.currentGroup) {
-          loadMyScores(AppState.currentGroup);
+          await loadMyScores(AppState.currentGroup);
         }
       }
     )
     .subscribe((status) => {
       AppState.sseConnected = (status === 'SUBSCRIBED');
       updateConnectionStatus(AppState.sseConnected ? 'connected' : 'disconnected');
-      if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+      if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         setTimeout(subscribeRealtime, 3000);
       }
     });
