@@ -4,238 +4,103 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🐱 教师管理后台 · 25商数班互评系统</title>
-<!-- Supabase JS SDK -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-const SUPABASE_URL = 'https://chemkvrwogihnfnmvwzh.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoZW1rdnJ3b2dpaG5mbm12d3poIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MTU2MzcsImV4cCI6MjA5ODI5MTYzN30.8zGX6ZH0HxfCcArrMH3Be_5dsFCqq62JCKm8qiU9_jA';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SB = 'https://chemkvrwogihnfnmvwzh.supabase.co';
+const AK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoZW1rdnJ3b2dpaG5mbm12d3poIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MTU2MzcsImV4cCI6MjA5ODI5MTYzN30.8zGX6ZH0HxfCcArrMH3Be_5dsFCqq62JCKm8qiU9_jA';
+let token = '';
+const api = (path, opts = {}) => {
+  const h = { 'apikey': AK, 'Content-Type': 'application/json', ...opts.headers };
+  if (token) h['Authorization'] = 'Bearer ' + token;
+  return fetch(SB + path, { ...opts, headers: h }).then(r => r.ok ? r.json() : r.json().then(e => { throw e; }));
+};
 </script>
 <style>
-/* ============================================================
-   猫咪主题 CSS - 教师管理后台
-   ============================================================ */
 :root {
-  --cat-orange: #F4A460;
-  --cat-orange-dark: #E8913A;
-  --cat-cream: #FFF8DC;
-  --cat-warm-pink: #FFB6C1;
-  --cat-brown: #8B6914;
-  --cat-dark: #5C4033;
-  --cat-green: #90EE90;
-  --cat-green-dark: #6AD46A;
-  --milk-white: #FFFAF5;
-  --fish-gray: #B0C4DE;
-  --paw-print: #D2B48C;
-  --card-bg: #FFFFFF;
-  --shadow: 0 4px 15px rgba(139,105,20,0.12);
-  --shadow-hover: 0 8px 30px rgba(139,105,20,0.2);
-  --radius: 16px;
-  --radius-sm: 10px;
-  --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --cat-orange: #F4A460; --cat-orange-dark: #E8913A; --cat-cream: #FFF8DC;
+  --cat-brown: #8B6914; --cat-dark: #5C4033; --cat-green: #90EE90;
+  --milk-white: #FFFAF5; --paw-print: #D2B48C;
+  --card-bg: #FFFFFF; --shadow: 0 4px 15px rgba(139,105,20,0.12);
+  --radius: 16px; --radius-sm: 10px;
 }
-
 * { margin: 0; padding: 0; box-sizing: border-box; }
-
-body {
-  font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
-  background: linear-gradient(135deg, #FFF8DC 0%, #FFF0E0 30%, #FFE8D0 60%, #FFF5EE 100%);
-  min-height: 100vh;
-  color: var(--cat-dark);
-}
-
+body { font-family: "PingFang SC","Microsoft YaHei",sans-serif; background: linear-gradient(135deg,#FFF8DC,#FFF0E0,#FFE8D0,#FFF5EE); min-height: 100vh; color: var(--cat-dark); }
 .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
-
-/* 头部 */
-.header {
-  text-align: center; padding: 25px 20px 15px;
-}
-.header h1 { font-size: 1.8em; color: var(--cat-dark); }
-.header .subtitle { font-size: 0.95em; color: var(--cat-brown); opacity: 0.85; margin-top: 4px; }
-
-/* 登录表单 */
-.login-box {
-  max-width: 400px; margin: 60px auto;
-  background: var(--card-bg); border-radius: var(--radius);
-  padding: 40px 32px; box-shadow: var(--shadow);
-  border: 2px solid var(--cat-orange);
-  position: relative;
-}
-.login-box::before, .login-box::after {
-  content: ''; position: absolute; top: -16px;
-  width: 0; height: 0;
-  border-left: 20px solid transparent;
-  border-right: 20px solid transparent;
-  border-bottom: 24px solid #fff;
-}
+.header { text-align: center; padding: 25px 20px 15px; }
+.header h1 { font-size: 1.8em; }
+.subtitle { font-size: 0.95em; color: var(--cat-brown); opacity: 0.85; margin-top: 4px; }
+.login-box { max-width: 400px; margin: 60px auto; background: var(--card-bg); border-radius: var(--radius); padding: 40px 32px; box-shadow: var(--shadow); border: 2px solid var(--cat-orange); position: relative; }
+.login-box::before, .login-box::after { content: ''; position: absolute; top: -16px; width: 0; height: 0; border-left: 20px solid transparent; border-right: 20px solid transparent; border-bottom: 24px solid #fff; }
 .login-box::before { left: 28px; transform: rotate(-10deg); }
 .login-box::after { right: 28px; transform: rotate(10deg); }
-.login-box h2 { text-align: center; color: var(--cat-dark); margin-bottom: 24px; }
+.login-box h2 { text-align: center; margin-bottom: 24px; }
 .login-box label { display: block; color: var(--cat-brown); font-size: 0.9em; margin-bottom: 6px; }
-.login-box input {
-  width: 100%; padding: 12px 16px; margin-bottom: 16px;
-  border: 2px solid #E8D5C4; border-radius: var(--radius-sm);
-  font-size: 1em; transition: border var(--transition);
-}
+.login-box input { width: 100%; padding: 12px 16px; margin-bottom: 16px; border: 2px solid #E8D5C4; border-radius: var(--radius-sm); font-size: 1em; }
 .login-box input:focus { outline: none; border-color: var(--cat-orange); }
-
-/* 猫爪登录按钮 */
-.login-btn {
-  width: 100%; background: linear-gradient(135deg, var(--cat-orange), #FF8C42);
-  color: #fff; border: none; padding: 14px; border-radius: 25px;
-  font-size: 1.1em; cursor: pointer; font-weight: bold;
-  box-shadow: 0 4px 15px rgba(244,164,96,0.4); transition: all var(--transition);
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-}
-.login-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(244,164,96,0.5); }
-.login-btn:active { transform: scale(0.97); }
+.login-btn { width: 100%; background: linear-gradient(135deg,var(--cat-orange),#FF8C42); color: #fff; border: none; padding: 14px; border-radius: 25px; font-size: 1.1em; cursor: pointer; font-weight: bold; box-shadow: 0 4px 15px rgba(244,164,96,0.4); }
+.login-btn:hover { transform: translateY(-2px); }
 .login-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-
-/* 管理面板 */
 .admin-panel { display: none; }
-.admin-header {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
-}
-
-/* 操作按钮 */
-.action-bar {
-  display: flex; gap: 10px; flex-wrap: wrap;
-}
-
-.cat-btn {
-  background: var(--milk-white); color: var(--cat-dark);
-  border: 2px solid var(--cat-orange); padding: 10px 20px;
-  border-radius: 20px; font-size: 0.9em; cursor: pointer;
-  font-weight: bold; transition: all var(--transition);
-  display: inline-flex; align-items: center; gap: 6px;
-}
+.admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+.action-bar { display: flex; gap: 10px; flex-wrap: wrap; }
+.cat-btn { background: var(--milk-white); color: var(--cat-dark); border: 2px solid var(--cat-orange); padding: 10px 20px; border-radius: 20px; font-size: 0.9em; cursor: pointer; font-weight: bold; }
 .cat-btn:hover { background: var(--cat-orange); color: #fff; }
 .cat-btn.danger { border-color: #f44336; color: #f44336; }
 .cat-btn.danger:hover { background: #f44336; color: #fff; }
 .cat-btn.logout { border-color: var(--cat-brown); color: var(--cat-brown); }
 .cat-btn.logout:hover { background: var(--cat-brown); color: #fff; }
-
-/* 卡片 step */
-.step {
-  background: var(--card-bg); border-radius: var(--radius);
-  padding: 24px 28px; margin-bottom: 20px;
-  box-shadow: var(--shadow); border: 2px solid transparent;
-  transition: all var(--transition); position: relative;
-}
-.step:hover { box-shadow: var(--shadow-hover); border-color: var(--cat-orange); }
+.step { background: var(--card-bg); border-radius: var(--radius); padding: 24px 28px; margin-bottom: 20px; box-shadow: var(--shadow); position: relative; }
 .step.with-ears { padding-top: 30px; }
-.step.with-ears::before, .step.with-ears::after {
-  content: ''; position: absolute; top: -16px;
-  width: 0; height: 0; border-left: 20px solid transparent;
-  border-right: 20px solid transparent; border-bottom: 24px solid #fff;
-  z-index: 2;
-}
+.step.with-ears::before, .step.with-ears::after { content: ''; position: absolute; top: -16px; width: 0; height: 0; border-left: 20px solid transparent; border-right: 20px solid transparent; border-bottom: 24px solid #fff; z-index: 2; }
 .step.with-ears::before { left: 28px; transform: rotate(-10deg); }
 .step.with-ears::after { right: 28px; transform: rotate(10deg); }
-.step-title {
-  font-size: 1.2em; font-weight: bold; color: var(--cat-dark);
-  margin-bottom: 16px; display: flex; align-items: center; gap: 10px;
-}
-
-/* 排名表格 */
+.step-title { font-size: 1.2em; font-weight: bold; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
 .results-table-wrap { overflow-x: auto; }
 .results-table { width: 100%; border-collapse: collapse; font-size: 0.88em; }
-.results-table thead th {
-  background: linear-gradient(180deg, var(--cat-orange), var(--cat-orange-dark));
-  color: #fff; padding: 10px 8px; text-align: center; font-weight: bold;
-  white-space: nowrap; position: sticky; top: 0;
-}
-.results-table tbody td {
-  padding: 9px 6px; text-align: center; border-bottom: 1px solid #F0E0D0;
-}
-.results-table tbody tr:hover { background: rgba(244,164,96,0.08); }
-
-.rank-badge {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px; border-radius: 50%; font-weight: bold; font-size: 0.88em;
-}
+.results-table thead th { background: linear-gradient(180deg,var(--cat-orange),var(--cat-orange-dark)); color: #fff; padding: 10px 6px; text-align: center; font-weight: bold; white-space: nowrap; }
+.results-table tbody td { padding: 9px 6px; text-align: center; border-bottom: 1px solid #F0E0D0; }
+.rank-badge { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; font-weight: bold; font-size: 0.88em; }
 .rank-1 { background: #FFD700; color: #8B6914; }
 .rank-2 { background: #C0C0C0; color: #555; }
 .rank-3 { background: #CD7F32; color: #fff; }
 .rank-other { background: #F0E0D0; color: var(--cat-brown); }
-
 .no-data { text-align: center; padding: 40px; color: var(--cat-brown); }
 .no-data span { font-size: 2.5em; display: block; margin-bottom: 8px; }
-
-/* Toast */
-.toast {
-  position: fixed; top: 20px; right: 20px; z-index: 9999;
-  background: var(--cat-green); color: #fff; padding: 14px 24px;
-  border-radius: 25px; font-weight: bold;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-  transform: translateX(120%); transition: transform 0.4s cubic-bezier(0.175,0.885,0.32,1.275);
-}
+.toast { position: fixed; top: 20px; right: 20px; z-index: 9999; background: var(--cat-green); color: #fff; padding: 14px 24px; border-radius: 25px; font-weight: bold; box-shadow: 0 4px 20px rgba(0,0,0,0.2); transform: translateX(120%); transition: transform 0.4s cubic-bezier(0.175,0.885,0.32,1.275); }
 .toast.show { transform: translateX(0); }
 .toast.error { background: #f44336; }
-
-/* 确认对话框 */
-.modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
-  display: flex; align-items: center; justify-content: center; z-index: 9990;
-}
-.modal-box {
-  background: #fff; border-radius: var(--radius); padding: 30px 28px;
-  max-width: 400px; text-align: center; box-shadow: 0 8px 40px rgba(0,0,0,0.25);
-}
-.modal-box h3 { margin-bottom: 12px; color: var(--cat-dark); }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 9990; }
+.modal-box { background: #fff; border-radius: var(--radius); padding: 30px 28px; max-width: 400px; text-align: center; box-shadow: 0 8px 40px rgba(0,0,0,0.25); }
+.modal-box h3 { margin-bottom: 12px; }
 .modal-box p { color: var(--cat-brown); margin-bottom: 20px; }
 .modal-actions { display: flex; gap: 12px; justify-content: center; }
-
-/* 加载 */
 .loading { text-align: center; padding: 20px; color: var(--cat-brown); }
-.spinner {
-  display: inline-block; width: 28px; height: 28px;
-  border: 3px solid #F0E0D0; border-top-color: var(--cat-orange);
-  border-radius: 50%; animation: spin 0.8s linear infinite;
-}
+.spinner { display: inline-block; width: 28px; height: 28px; border: 3px solid #F0E0D0; border-top-color: var(--cat-orange); border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-
-/* 页脚 */
 .footer { text-align: center; padding: 25px; color: var(--paw-print); font-size: 0.85em; }
-
-@media (max-width: 768px) {
-  .admin-header { flex-direction: column; }
-  .action-bar { justify-content: center; }
-}
 </style>
 </head>
 <body>
-
 <div class="container">
-
-  <!-- 头部 -->
   <header class="header">
     <h1>🐱 教师管理后台</h1>
     <div class="subtitle">25商数班《数据分析技术课程》· 小组互评系统</div>
     <div class="subtitle">👩‍🏫 教师：张天舒</div>
   </header>
 
-  <!-- 登录表单 -->
   <div id="loginSection">
     <div class="login-box">
       <h2>🔐 教师登录</h2>
-      <label for="email">📧 邮箱</label>
-      <input type="email" id="email" placeholder="请输入教师邮箱" required>
-      <label for="password">🔑 密码</label>
-      <input type="password" id="password" placeholder="请输入密码" required>
-      <button class="login-btn" id="loginBtn" onclick="doLogin()">
-        🐾 喵~登录
-      </button>
+      <label>📧 邮箱</label>
+      <input type="email" id="email" placeholder="请输入教师邮箱">
+      <label>🔑 密码</label>
+      <input type="password" id="password" placeholder="请输入密码">
+      <button class="login-btn" id="loginBtn" onclick="doLogin()">🐾 喵~登录</button>
     </div>
   </div>
 
-  <!-- 管理面板（登录后显示） -->
   <div class="admin-panel" id="adminPanel">
     <div class="admin-header">
-      <div style="font-size:1.1em;">
-        👩‍🏫 已登录：<strong id="teacherEmail"></strong>
-      </div>
+      <div>👩‍🏫 已登录：<strong id="teacherEmail"></strong></div>
       <div class="action-bar">
         <button class="cat-btn" onclick="exportScores()">📥 导出 JSON</button>
         <button class="cat-btn danger" onclick="confirmReset()">🔄 重置评分</button>
@@ -243,63 +108,37 @@ body {
       </div>
     </div>
 
-    <!-- 排名表格 -->
     <section class="step with-ears">
       <div class="step-title">🏆 评分排名</div>
       <div class="results-table-wrap">
-        <table class="results-table" id="resultsTable">
+        <table class="results-table">
           <thead>
-            <tr>
-              <th>排名</th><th>组号</th><th>小组成员</th><th>总均分</th>
-              <th>背景介绍</th><th>数据说明</th><th>描述性分析</th>
-              <th>建模分析</th><th>商业化应用</th><th>报告格式</th>
-              <th>评分数</th>
-            </tr>
+            <tr><th>排名</th><th>组号</th><th>成员</th><th>总分</th><th>背景(20)</th><th>获取(15)</th><th>说明(20)</th><th>分析(30)</th><th>商业(15)</th><th>评分数</th></tr>
           </thead>
-          <tbody id="resultsBody">
-            <tr><td colspan="11"><div class="loading"><div class="spinner"></div> 加载中...</div></td></tr>
-          </tbody>
+          <tbody id="resultsBody"><tr><td colspan="10"><div class="loading"><div class="spinner"></div> 加载中...</div></td></tr></tbody>
         </table>
       </div>
     </section>
 
-    <!-- 评分详情 -->
     <section class="step with-ears">
       <div class="step-title">📋 评分记录明细（共 <span id="totalCount">0</span> 条）</div>
       <div class="results-table-wrap" style="max-height:500px;overflow-y:auto;">
         <table class="results-table">
-          <thead>
-            <tr>
-              <th>评分组</th><th>被评组</th><th>总分</th>
-              <th>背景</th><th>数据说明</th><th>描述性</th>
-              <th>建模</th><th>商业</th><th>格式</th>
-              <th>时间</th>
-            </tr>
-          </thead>
-          <tbody id="scoresBody">
-            <tr><td colspan="10"><div class="loading"><div class="spinner"></div> 加载中...</div></td></tr>
-          </tbody>
+          <thead><tr><th>评分组</th><th>被评组</th><th>总分</th><th>背景</th><th>获取</th><th>说明</th><th>分析</th><th>商业</th><th>时间</th></tr></thead>
+          <tbody id="scoresBody"><tr><td colspan="9"><div class="loading"><div class="spinner"></div> 加载中...</div></td></tr></tbody>
         </table>
       </div>
     </section>
   </div>
 
-  <!-- 页脚 -->
-  <footer class="footer">
-    <div>🐾 🐾 🐾 🐾 🐾</div>
-    <p>喵~ 教师管理后台</p>
-  </footer>
-
+  <footer class="footer"><div>🐾 🐾 🐾 🐾 🐾</div><p>喵~ 教师管理后台</p></footer>
 </div>
 
-<!-- Toast -->
 <div class="toast" id="toast"></div>
-
-<!-- 确认对话框 -->
 <div id="confirmModal" style="display:none;" class="modal-overlay">
   <div class="modal-box">
     <h3>⚠️ 确认重置</h3>
-    <p>此操作将删除所有评分数据，不可恢复！<br>确定要继续吗？</p>
+    <p>此操作将删除所有评分数据，不可恢复！</p>
     <div class="modal-actions">
       <button class="cat-btn" onclick="closeModal()">取消</button>
       <button class="cat-btn danger" id="confirmResetBtn" onclick="doReset()">确认重置</button>
@@ -308,191 +147,116 @@ body {
 </div>
 
 <script>
-// ============================================================
-// 教师管理后台 JavaScript
-// ============================================================
+const DIMS = ['背景介绍','数据获取','数据说明','数据分析','商业应用'];
+const ALL = [
+  {id:1,m:'宋泽、魏海洋、孔文兴、李祥斌'},{id:2,m:'刘能浩、李向川、曹迎春'},
+  {id:3,m:'彭翔栩、李文武、施润、王嵘俊'},{id:4,m:'邵明雨、朱俊莹、苏国'},
+  {id:5,m:'朱楠、龙文静、朱明芬'},{id:6,m:'罗雯霄、李娜、张鑫雨、胡俊仪'},
+  {id:7,m:'蔡奇仙、李美婷、胡兴蕊'},{id:8,m:'马跃芸、王永利、钱思怡'},
+  {id:9,m:'代长美、罗微、赵国慧'},{id:10,m:'曹希萌、马富容、崔冬月'},
+  {id:11,m:'陈玉曼、金淑靖'},{id:12,m:'李韩'}
+];
 
-const DIMS = ['背景介绍','数据说明','数据描述性分析','数据建模分析','商业化应用','报告格式与展示'];
-
-// ============================================================
-// 页面初始化
-// ============================================================
 async function init() {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session) {
-    showAdminPanel(session.user.email);
+  const t = localStorage.getItem('sb_tok');
+  if (t) {
+    token = t;
+    try { const r = await fetch(SB+'/auth/v1/user',{headers:{'apikey':AK,'Authorization':'Bearer '+t}});
+      if (r.ok) { const u = await r.json(); showPanel(u.email); return; }
+    } catch(e) {}
+    localStorage.removeItem('sb_tok'); token = '';
   }
 }
 document.addEventListener('DOMContentLoaded', init);
 
-// ============================================================
-// 登录
-// ============================================================
 async function doLogin() {
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value.trim();
-  if (!email || !password) { showToast('请填写邮箱和密码', true); return; }
+  const e = document.getElementById('email').value.trim();
+  const p = document.getElementById('password').value.trim();
+  if (!e||!p) { toast('请填写邮箱和密码',1); return; }
+  const b = document.getElementById('loginBtn'); b.disabled = true; b.textContent = '⏳ 登录中...';
+  try {
+    const r = await fetch(SB+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'apikey':AK,'Content-Type':'application/json'},body:JSON.stringify({email:e,password:p})});
+    const d = await r.json();
+    if (!r.ok||!d.access_token) { toast('登录失败：'+(d.error_description||'用户名或密码错误'),1); b.disabled=false; b.textContent='🐾 喵~登录'; return; }
+    token = d.access_token; localStorage.setItem('sb_tok',token); showPanel(e);
+  } catch(x) { toast('网络错误',1); b.disabled=false; b.textContent='🐾 喵~登录'; }
+}
 
-  const btn = document.getElementById('loginBtn');
-  btn.disabled = true;
-  btn.textContent = '⏳ 登录中...';
+function showPanel(email) {
+  document.getElementById('loginSection').style.display='none';
+  document.getElementById('adminPanel').style.display='block';
+  document.getElementById('teacherEmail').textContent=email;
+  loadAll();
+}
 
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+function doLogout() {
+  token=''; localStorage.removeItem('sb_tok');
+  document.getElementById('loginSection').style.display='block';
+  document.getElementById('adminPanel').style.display='none';
+  toast('已退出登录');
+}
 
-  if (error) {
-    showToast('登录失败：' + error.message, true);
-    btn.disabled = false;
-    btn.textContent = '🐾 喵~登录';
+async function loadAll() { await Promise.all([loadR(), loadS()]); }
+
+async function loadR() {
+  const data = await api('/rest/v1/scores?select=rated_group,scores,total').catch(()=>[]);
+  if (!Array.isArray(data)||!data.length) {
+    document.getElementById('resultsBody').innerHTML='<tr><td colspan="10"><div class="no-data"><span>😺💤</span>还没有评分数据</div></td></tr>';
     return;
   }
-
-  showAdminPanel(data.user.email);
-}
-
-function showAdminPanel(email) {
-  document.getElementById('loginSection').style.display = 'none';
-  document.getElementById('adminPanel').style.display = 'block';
-  document.getElementById('teacherEmail').textContent = email;
-  loadAllData();
-}
-
-// ============================================================
-// 退出登录
-// ============================================================
-async function doLogout() {
-  await supabase.auth.signOut();
-  document.getElementById('loginSection').style.display = 'block';
-  document.getElementById('adminPanel').style.display = 'none';
-  document.getElementById('email').value = '';
-  document.getElementById('password').value = '';
-  showToast('已退出登录');
-}
-
-// ============================================================
-// 加载数据
-// ============================================================
-async function loadAllData() {
-  await Promise.all([loadResults(), loadScoresDetail()]);
-}
-
-async function loadResults() {
-  const { data, error } = await supabase.from('group_results').select('*');
-  if (error) { showToast('加载排名失败', true); return; }
-  renderResults(data || []);
-}
-
-function renderResults(results) {
-  if (!results.length) {
-    document.getElementById('resultsBody').innerHTML =
-      '<tr><td colspan="11"><div class="no-data"><span>😺💤</span>还没有评分数据</div></td></tr>';
-    return;
-  }
-
-  document.getElementById('resultsBody').innerHTML = results.map(r => {
-    const rankClass = r.rank === 1 ? 'rank-1' : r.rank === 2 ? 'rank-2' : r.rank === 3 ? 'rank-3' : 'rank-other';
-    return `<tr>
-      <td><span class="rank-badge ${rankClass}">${r.rank || '-'}</span></td>
-      <td><strong>第${r.group_id}组</strong></td>
-      <td style="text-align:left;padding-left:8px;">${(r.members || []).join('、')}</td>
-      <td><strong style="color:var(--cat-orange-dark);font-size:1.05em;">${r.avg_total || 0}</strong></td>
-      <td>${r.avg_背景介绍 || 0}</td>
-      <td>${r.avg_数据说明 || 0}</td>
-      <td>${r.avg_数据描述性分析 || 0}</td>
-      <td>${r.avg_数据建模分析 || 0}</td>
-      <td>${r.avg_商业化应用 || 0}</td>
-      <td>${r.avg_报告格式与展示 || 0}</td>
-      <td>${r.score_count}/11</td>
-    </tr>`;
+  const gm = {}; ALL.forEach(g=>{gm[g.id]={id:g.id,m:g.m,t:[],mods:{}}; DIMS.forEach(d=>gm[g.id].mods[d]=[])});
+  data.forEach(s=>{const g=gm[s.rated_group]; if(!g)return; g.t.push(s.total); DIMS.forEach(d=>{const v=(s.scores||{})[d]; if(v!=null)g.mods[d].push(v)});});
+  const results = Object.values(gm).map(g=>{
+    const at=g.t.length?g.t.reduce((a,b)=>a+b,0)/g.t.length:0;
+    const av={}; DIMS.forEach(d=>{const a=g.mods[d]; av[d]=a.length?a.reduce((x,y)=>x+y,0)/a.length:0});
+    return {group_id:g.id,members:g.m,avg_total:Math.round(at*10)/10,modules:av,score_count:g.t.length};
+  });
+  results.sort((a,b)=>b.avg_total-a.avg_total);
+  results.forEach((r,i)=>{r.rank=i>0&&r.avg_total===results[i-1].avg_total?results[i-1].rank:i+1});
+  const fmt=v=>v==null?'-':(Math.round(v*100)/100);
+  document.getElementById('resultsBody').innerHTML=results.map(r=>{
+    const rc=r.rank===1?'rank-1':r.rank===2?'rank-2':r.rank===3?'rank-3':'rank-other';
+    return `<tr><td><span class="rank-badge ${rc}">${r.rank}</span></td><td><strong>第${r.group_id}组</strong></td><td style="text-align:left">${r.members}</td><td><strong style="color:var(--cat-orange-dark)">${fmt(r.avg_total)}</strong></td><td>${fmt(r.modules['背景介绍'])}</td><td>${fmt(r.modules['数据获取'])}</td><td>${fmt(r.modules['数据说明'])}</td><td>${fmt(r.modules['数据分析'])}</td><td>${fmt(r.modules['商业应用'])}</td><td>${r.score_count}/11</td></tr>`;
   }).join('');
 }
 
-async function loadScoresDetail() {
-  const { data, error } = await supabase
-    .from('scores')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) { showToast('加载记录失败', true); return; }
-
-  document.getElementById('totalCount').textContent = data?.length || 0;
-
-  if (!data?.length) {
-    document.getElementById('scoresBody').innerHTML =
-      '<tr><td colspan="10"><div class="no-data"><span>📭</span>暂无评分记录</div></td></tr>';
-    return;
-  }
-
-  document.getElementById('scoresBody').innerHTML = data.map(s => {
-    const sc = s.scores || {};
-    const time = new Date(s.created_at).toLocaleString('zh-CN');
-    return `<tr>
-      <td><strong>第${s.rater_group}组</strong></td>
-      <td>第${s.rated_group}组</td>
-      <td>${s.total}</td>
-      ${DIMS.map(d => `<td>${sc[d] || '-'}</td>`).join('')}
-      <td style="font-size:0.78em;color:var(--cat-brown);">${time}</td>
-    </tr>`;
+async function loadS() {
+  const data = await api('/rest/v1/scores?select=*&order=created_at.desc').catch(()=>[]);
+  document.getElementById('totalCount').textContent=(data||[]).length;
+  if (!(data||[]).length) { document.getElementById('scoresBody').innerHTML='<tr><td colspan="9"><div class="no-data"><span>📭</span>暂无评分记录</div></td></tr>'; return; }
+  document.getElementById('scoresBody').innerHTML=data.map(s=>{
+    const sc=s.scores||{}, t=new Date(s.created_at).toLocaleString('zh-CN');
+    return `<tr><td><strong>第${s.rater_group}组</strong></td><td>第${s.rated_group}组</td><td>${s.total}</td>${DIMS.map(d=>'<td>'+(sc[d]??'-')+'</td>').join('')}<td style="font-size:0.78em;color:var(--cat-brown)">${t}</td></tr>`;
   }).join('');
 }
 
-// ============================================================
-// 导出 JSON
-// ============================================================
 async function exportScores() {
-  showToast('正在导出...');
-  const { data, error } = await supabase.rpc('export_all_scores');
-  if (error || !data || !data.scores) {
-    showToast('导出失败，请确认已登录', true); return;
-  }
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `scores-${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('导出成功！📥');
+  toast('正在导出...');
+  try {
+    const data = await api('/rest/v1/rpc/export_all_scores',{method:'POST'}).catch(()=>null);
+    if(!data||!data.scores){toast('导出失败',1);return;}
+    const b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(b);
+    a.download='scores-'+new Date().toISOString().slice(0,10)+'.json';
+    a.click(); URL.revokeObjectURL(a.href); toast('导出成功！📥');
+  } catch(e) { toast('导出失败',1); }
 }
 
-// ============================================================
-// 重置评分
-// ============================================================
-function confirmReset() {
-  document.getElementById('confirmModal').style.display = 'flex';
-}
-
-function closeModal() {
-  document.getElementById('confirmModal').style.display = 'none';
-}
-
+function confirmReset() { document.getElementById('confirmModal').style.display='flex'; }
+function closeModal() { document.getElementById('confirmModal').style.display='none'; }
 async function doReset() {
-  closeModal();
-  const btn = document.getElementById('confirmResetBtn');
-  btn.disabled = true;
-  btn.textContent = '重置中...';
-
-  const { data, error } = await supabase.rpc('reset_all_scores');
-  if (error) { showToast('重置失败：' + error.message, true); }
-  else if (!data.success) { showToast(data.error, true); }
-  else { showToast('所有评分已重置！🔄'); loadAllData(); }
-
-  btn.disabled = false;
-  btn.textContent = '确认重置';
+  closeModal(); const b=document.getElementById('confirmResetBtn');
+  b.disabled=true; b.textContent='重置中...';
+  try {
+    const data = await api('/rest/v1/rpc/reset_all_scores',{method:'POST'}).catch(()=>null);
+    if(!data||!data.success) toast(data?.error||'重置失败',1);
+    else { toast('所有评分已重置！🔄'); loadAll(); }
+  } catch(e) { toast('重置失败',1); }
+  b.disabled=false; b.textContent='确认重置';
 }
 
-// ============================================================
-// Toast
-// ============================================================
-let toastTimer;
-function showToast(msg, isError = false) {
-  clearTimeout(toastTimer);
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'toast ' + (isError ? 'error' : '');
-  el.offsetHeight;
-  el.classList.add('show');
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
-}
+let tt;
+function toast(m,e) { clearTimeout(tt); const el=document.getElementById('toast'); el.textContent=m; el.className='toast'+(e?' error':''); el.offsetHeight; el.classList.add('show'); tt=setTimeout(()=>el.classList.remove('show'),2500); }
 </script>
 </body>
 </html>
