@@ -7,24 +7,14 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>🐱 25商数班 · 猫咪互评系统 v2</title>
-<!-- Supabase JS SDK -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-// Supabase 初始化（CDN 失败时降级，不阻塞页面）
-const SUPABASE_URL = 'https://chemkvrwogihnfnmvwzh.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoZW1rdnJ3b2dpaG5mbm12d3poIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MTU2MzcsImV4cCI6MjA5ODI5MTYzN30.8zGX6ZH0HxfCcArrMH3Be_5dsFCqq62JCKm8qiU9_jA';
-let supabase;
-if (window.supabase) {
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-} else {
-  console.warn('Supabase CDN 未加载，使用离线模式');
-  supabase = {
-    from: () => ({ select: () => Promise.resolve({ data: [], error: null }), eq: () => ({ select: () => Promise.resolve({ data: [], error: null }) }) }),
-    rpc: () => Promise.resolve({ data: null, error: { message: '离线模式' } }),
-    channel: () => ({ on: () => ({ subscribe: (cb) => { if (cb) cb('CLOSED'); return { unsubscribe: () => {} }; } }) }),
-    removeChannel: () => {}
-  };
-}
+// 纯 fetch 直连 Supabase REST API（无需任何 CDN）
+const SB_URL = 'https://chemkvrwogihnfnmvwzh.supabase.co/rest/v1';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoZW1rdnJ3b2dpaG5mbm12d3poIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MTU2MzcsImV4cCI6MjA5ODI5MTYzN30.8zGX6ZH0HxfCcArrMH3Be_5dsFCqq62JCKm8qiU9_jA';
+const sb = (path, opts = {}) => fetch(SB_URL + path, {
+  headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', ...opts.headers },
+  ...opts
+}).then(r => r.ok ? r.json() : r.json().then(e => { throw e; }));
 </script>
 <style>
 /* ============================================================
@@ -917,7 +907,7 @@ async function loadGroups() {
 
   // 后台异步加载评分进度（非阻塞）
   try {
-    const { data: scores } = await supabase.from('scores').select('rater_group');
+    const scores = await sb('/scores?select=rater_group').catch(() => []);
     const countMap = {};
     (scores || []).forEach(s => { countMap[s.rater_group] = (countMap[s.rater_group] || 0) + 1; });
     if (AppState.currentGroup) {
@@ -964,11 +954,7 @@ groupSelect.addEventListener('change', async function() {
 
 async function loadMyScores(gid) {
   try {
-    const { data, error } = await supabase
-      .from('scores')
-      .select('*')
-      .eq('rater_group', gid);
-    if (error) { console.error('加载评分记录失败', error); return; }
+    const data = await sb('/scores?select=*&rater_group=eq.' + gid).catch(() => []);
     AppState.myScores = {};
     (data || []).forEach(s => {
       AppState.myScores[s.rated_group] = s;
@@ -1081,13 +1067,16 @@ async function submitScore(ratedGid) {
   });
 
   try {
-    const { data, error } = await supabase.rpc('upsert_score', {
-      p_rater_group: AppState.currentGroup,
-      p_rated_group: ratedGid,
-      p_scores: scores
-    });
+    const data = await sb('/rpc/upsert_score', {
+      method: 'POST',
+      body: JSON.stringify({
+        p_rater_group: AppState.currentGroup,
+        p_rated_group: ratedGid,
+        p_scores: scores
+      })
+    }).catch(() => null);
 
-    if (error || !data || !data.success) {
+    if (!data || !data.success) {
       showToast(data?.error || '提交失败 😿', true);
       return;
     }
@@ -1159,12 +1148,15 @@ async function submitAllScores() {
     });
 
     try {
-      const { data, error } = await supabase.rpc('upsert_score', {
-        p_rater_group: myGid,
-        p_rated_group: g.id,
-        p_scores: scores
-      });
-      if (!error && data && data.success) {
+      const data = await sb('/rpc/upsert_score', {
+        method: 'POST',
+        body: JSON.stringify({
+          p_rater_group: myGid,
+          p_rated_group: g.id,
+          p_scores: scores
+        })
+      }).catch(() => null);
+      if (data && data.success) {
         successCount++;
         card.classList.add('completed');
         const cbtn = card.querySelector('.paw-btn');
@@ -1215,10 +1207,7 @@ function updateSubmitAllBtn() {
 // ============================================================
 async function loadResults() {
   try {
-    const { data, error } = await supabase
-      .from('group_results')
-      .select('*');
-    if (error) { console.error('加载排名失败', error); return; }
+    const data = await sb('/group_results?select=*').catch(() => []);
     AppState.results = data || [];
     renderResults();
   } catch (e) {
@@ -1263,39 +1252,21 @@ function renderResults() {
 }
 
 // ============================================================
-// Supabase Realtime 订阅（替代原 SSE）
-// ============================================================
+// 轮询刷新排名（每3秒，替代 WebSocket Realtime）
+let pollTimer = null;
 function subscribeRealtime() {
-  if (AppState.channel) {
-    supabase.removeChannel(AppState.channel);
-  }
-
-  const channel = supabase
-    .channel('scores-realtime')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'scores' },
-      async (payload) => {
-        console.log('评分变更:', payload);
-        await loadResults();
-        if (AppState.currentGroup &&
-            payload.new &&
-            payload.new.rater_group === AppState.currentGroup) {
-          await loadMyScores(AppState.currentGroup);
-        }
+  updateConnectionStatus('connected');
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    try {
+      const data = await sb('/group_results?select=*').catch(() => null);
+      if (data) {
+        const oldJson = JSON.stringify(AppState.results);
+        AppState.results = data;
+        if (JSON.stringify(data) !== oldJson) renderResults();
       }
-    )
-    .subscribe((status) => {
-      AppState.sseConnected = (status === 'SUBSCRIBED');
-      updateConnectionStatus(AppState.sseConnected ? 'connected' : 'disconnected');
-      if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        setTimeout(subscribeRealtime, 3000);
-      }
-    });
-
-  AppState.channel = channel;
-  AppState.sseConnected = false;
-  updateConnectionStatus('connecting');
+    } catch(e) {}
+  }, 3000);
 }
 
 function updateConnectionStatus(state) {
